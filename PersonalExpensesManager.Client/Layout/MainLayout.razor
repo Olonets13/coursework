@@ -1,0 +1,40 @@
+﻿@inherits LayoutComponentBase
+@inject AuthApiClient Auth
+@inject NavigationManager Navigation
+
+<div class="app-shell">
+    <header class="app-header">
+        <a class="brand" href="">
+            <span>PM</span>
+            <strong>Personal Money</strong>
+        </a>
+
+        <AuthorizeView>
+            <Authorized Context="auth">
+                <NavMenu />
+                <div class="profile-chip">
+                    <span>@auth.User.Identity?.Name</span>
+                    <button class="ghost-button" @onclick="LogoutAsync">Вийти</button>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <nav class="auth-nav">
+                    <a href="login">Вхід</a>
+                    <a class="button primary compact" href="register">Реєстрація</a>
+                </nav>
+            </NotAuthorized>
+        </AuthorizeView>
+    </header>
+
+    <main class="app-main">
+        @Body
+    </main>
+</div>
+
+@code {
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Navigation.NavigateTo("login", replace: true);
+    }
+}

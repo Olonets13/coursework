@@ -1,0 +1,110 @@
+@page "/accounts"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Рахунки</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Гаманець, карта, заощадження</p>
+        <h1>Рахунки</h1>
+    </div>
+</section>
+
+<section class="workspace-grid narrow">
+    <EditForm Model="form" OnValidSubmit="SaveAsync" class="surface form-panel">
+        <DataAnnotationsValidator />
+        <h2>@(form.Id == 0 ? "Новий рахунок" : "Редагування")</h2>
+
+        <label>
+            Назва
+            <InputText class="input" @bind-Value="form.Name" />
+        </label>
+        <ValidationMessage For="@(() => form.Name)" />
+
+        <label>
+            Валюта
+            <InputText class="input" @bind-Value="form.Currency" />
+        </label>
+
+        <label>
+            Початковий баланс
+            <InputNumber class="input" @bind-Value="form.InitialBalance" />
+        </label>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">Зберегти</button>
+            <button class="button" type="button" @onclick="ResetForm">Очистити</button>
+        </div>
+    </EditForm>
+
+    <section class="surface">
+        <div class="section-title">
+            <h2>Поточні рахунки</h2>
+            <span>@Money(accounts.Sum(x => x.CurrentBalance))</span>
+        </div>
+
+        <div class="card-list">
+            @foreach (var item in accounts)
+            {
+                <div class="account-card">
+                    <div>
+                        <strong>@item.Name</strong>
+                        <small>@item.Currency · старт @Money(item.InitialBalance)</small>
+                    </div>
+                    <b class="@(item.CurrentBalance >= 0 ? "good" : "bad")">@Money(item.CurrentBalance)</b>
+                    <div class="actions">
+                        <button class="icon-button" title="Редагувати" @onclick="() => Edit(item)">✎</button>
+                        <button class="icon-button danger" title="Видалити" @onclick="() => DeleteAsync(item.Id)">×</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</section>
+
+@code {
+    private List<AccountDto> accounts = [];
+    private AccountDto form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        accounts = await Api.GetAccountsAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        await Api.SaveAccountAsync(form);
+        ResetForm();
+        await LoadAsync();
+    }
+
+    private void Edit(AccountDto item)
+    {
+        form = new AccountDto
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Currency = item.Currency,
+            InitialBalance = item.InitialBalance
+        };
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await Api.DeleteAccountAsync(id);
+        await LoadAsync();
+    }
+
+    private void ResetForm()
+    {
+        form = new AccountDto { Currency = "UAH" };
+    }
+
+    private static string Money(decimal value) => $"{value:N0} UAH";
+}

@@ -1,0 +1,101 @@
+.app-shell {
+    min-height: 100vh;
+    background:
+        linear-gradient(180deg, rgba(20, 33, 61, 0.96) 0, rgba(20, 33, 61, 0.96) 16rem, transparent 16rem),
+        #eef1e8;
+}
+
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(20, 33, 61, 0.96);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(14px);
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: #ffffff;
+}
+
+.brand:hover {
+    color: #ffffff;
+}
+
+.brand span {
+    display: grid;
+    place-items: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 8px;
+    background: #e9c46a;
+    color: #14213d;
+    font-weight: 800;
+}
+
+.brand strong {
+    white-space: nowrap;
+}
+
+.profile-chip,
+.auth-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    justify-content: flex-end;
+}
+
+.profile-chip span {
+    max-width: 14rem;
+    overflow: hidden;
+    color: #f8fafc;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ghost-button {
+    min-height: 2.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    padding: 0 0.8rem;
+    cursor: pointer;
+}
+
+.auth-nav a {
+    color: #ffffff;
+}
+
+.app-main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 1.2rem;
+}
+
+@media (max-width: 920px) {
+    .app-header {
+        position: relative;
+        grid-template-columns: 1fr;
+    }
+
+    .profile-chip,
+    .auth-nav {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+@media (min-width: 760px) {
+    .app-main {
+        padding: 2rem;
+    }
+}

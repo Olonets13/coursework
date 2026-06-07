@@ -1,0 +1,15 @@
+@inject NavigationManager Navigation
+
+<div class="auth-shell">
+    <div class="auth-panel">
+        <p class="eyebrow">Потрібен вхід</p>
+        <h1>Переходимо до авторизації</h1>
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Navigation.NavigateTo("login", replace: true);
+    }
+}

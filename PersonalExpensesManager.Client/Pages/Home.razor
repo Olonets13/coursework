@@ -1,0 +1,120 @@
+@page "/"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Огляд фінансів</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Менеджер особистих витрат</p>
+        <h1>Огляд фінансів</h1>
+    </div>
+    <a class="button primary" href="transactions">Додати операцію</a>
+</section>
+
+@if (loading)
+{
+    <div class="surface">Завантаження даних...</div>
+}
+else
+{
+    <section class="metric-grid">
+        <div class="metric">
+            <span>Загальний баланс</span>
+            <strong class="@(summary.Balance >= 0 ? "good" : "bad")">@Money(summary.Balance)</strong>
+        </div>
+        <div class="metric">
+            <span>Доходи за місяць</span>
+            <strong class="good">@Money(summary.MonthIncome)</strong>
+        </div>
+        <div class="metric">
+            <span>Витрати за місяць</span>
+            <strong class="bad">@Money(summary.MonthExpenses)</strong>
+        </div>
+        <div class="metric">
+            <span>Кількість операцій</span>
+            <strong>@summary.TransactionsCount</strong>
+        </div>
+    </section>
+
+    <section class="split-grid">
+        <div class="surface">
+            <div class="section-title">
+                <h2>Останні операції</h2>
+                <a href="transactions">Усі</a>
+            </div>
+            <div class="list">
+                @foreach (var item in recentTransactions)
+                {
+                    <div class="list-row">
+                        <span class="dot" style="background:@item.CategoryColor"></span>
+                        <div>
+                            <strong>@item.Title</strong>
+                            <small>@item.CategoryName · @item.Date.ToString("dd.MM.yyyy")</small>
+                        </div>
+                        <b class="@(item.Type == TransactionType.Income ? "good" : "bad")">
+                            @(item.Type == TransactionType.Income ? "+" : "-")@Money(item.Amount)
+                        </b>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="surface">
+            <div class="section-title">
+                <h2>Витрати за категоріями</h2>
+                <a href="statistics">Деталі</a>
+            </div>
+            @if (categorySummary.Count == 0)
+            {
+                <p class="muted">За поточний місяць ще немає витрат.</p>
+            }
+            else
+            {
+                <div class="bars">
+                    @foreach (var category in categorySummary)
+                    {
+                        var percent = CategoryLimitPercent(category);
+                        <div class="bar-row">
+                            <div class="bar-label">
+                                <span>@category.CategoryName</span>
+                                <b>@Money(category.Amount) · @PercentLabel(percent)</b>
+                            </div>
+                            <div class="bar-track">
+                                <span style="--progress:@ProgressScale(percent); background:@category.CategoryColor"></span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    private bool loading = true;
+    private SummaryDto summary = new();
+    private List<TransactionDto> recentTransactions = [];
+    private List<CategorySummaryDto> categorySummary = [];
+    private List<BudgetDto> budgets = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        summary = await Api.GetSummaryAsync();
+        recentTransactions = (await Api.GetTransactionsAsync()).Take(6).ToList();
+        categorySummary = await Api.GetCategorySummaryAsync();
+        budgets = await Api.GetBudgetsAsync();
+        loading = false;
+    }
+
+    private decimal CategoryLimitPercent(CategorySummaryDto category)
+    {
+        var budget = budgets.FirstOrDefault(x => x.CategoryId == category.CategoryId);
+        return budget is null || budget.Limit <= 0 ? 0 : category.Amount / budget.Limit * 100;
+    }
+
+    private static string CssPercent(decimal value) => Math.Clamp(value, 0, 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private static string ProgressScale(decimal value) => (Math.Clamp(value, 0, 100) / 100).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+    private static string PercentLabel(decimal value) => $"{CssPercent(value)}%";
+    private static string Money(decimal value) => $"{value:N0} UAH";
+}

@@ -1,0 +1,71 @@
+@page "/register"
+@inject AuthApiClient Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Реєстрація</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-panel">
+        <p class="eyebrow">Новий профіль</p>
+        <h1>Реєстрація</h1>
+        <p class="muted">Після реєстрації будуть створені стартові категорії, рахунки і демо-операції.</p>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert">@error</div>
+        }
+
+        <EditForm Model="form" OnValidSubmit="RegisterAsync" class="auth-form">
+            <DataAnnotationsValidator />
+            <label>
+                Ім'я
+                <InputText class="input" @bind-Value="form.FullName" />
+            </label>
+            <ValidationMessage For="@(() => form.FullName)" />
+
+            <label>
+                Email
+                <InputText class="input" @bind-Value="form.Email" />
+            </label>
+            <ValidationMessage For="@(() => form.Email)" />
+
+            <label>
+                Пароль
+                <InputText class="input" type="password" @bind-Value="form.Password" />
+            </label>
+            <ValidationMessage For="@(() => form.Password)" />
+
+            <button class="button primary wide" type="submit">Створити акаунт</button>
+        </EditForm>
+
+        <p class="auth-switch">Вже є акаунт? <a href="login">Увійти</a></p>
+    </div>
+
+    <div class="auth-visual register">
+        <div class="auth-number">4 модулі</div>
+        <span>операції, рахунки, бюджети, статистика</span>
+        <div class="auth-lines">
+            <i style="width: 74%"></i>
+            <i style="width: 88%"></i>
+            <i style="width: 46%"></i>
+        </div>
+    </div>
+</section>
+
+@code {
+    private RegisterDto form = new();
+    private string? error;
+
+    private async Task RegisterAsync()
+    {
+        try
+        {
+            await Auth.RegisterAsync(form);
+            Navigation.NavigateTo("", replace: true);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message.Trim('"');
+        }
+    }
+}

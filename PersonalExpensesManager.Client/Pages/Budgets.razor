@@ -1,0 +1,142 @@
+@page "/budgets"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Бюджети</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Ліміти на місяць</p>
+        <h1>Бюджети</h1>
+    </div>
+</section>
+
+<section class="workspace-grid narrow">
+    <EditForm Model="form" OnValidSubmit="SaveAsync" class="surface form-panel">
+        <DataAnnotationsValidator />
+        <h2>@(form.Id == 0 ? "Новий бюджет" : "Редагування")</h2>
+
+        <label>
+            Категорія витрат
+            <InputSelect class="input" @bind-Value="form.CategoryId">
+                @foreach (var category in ExpenseCategories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label>
+            Ліміт
+            <InputNumber class="input" @bind-Value="form.Limit" />
+        </label>
+
+        <div class="two-columns">
+            <label>
+                Місяць
+                <InputNumber class="input" @bind-Value="form.Month" />
+            </label>
+            <label>
+                Рік
+                <InputNumber class="input" @bind-Value="form.Year" />
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">Зберегти</button>
+            <button class="button" type="button" @onclick="ResetForm">Очистити</button>
+        </div>
+    </EditForm>
+
+    <section class="surface">
+        <div class="section-title">
+            <h2>Ліміти цього місяця</h2>
+            <span>@budgets.Count</span>
+        </div>
+
+        <div class="budget-list">
+            @foreach (var item in budgets)
+            {
+                <div class="budget-item">
+                    <div class="bar-label">
+                        <div>
+                            <strong>@item.CategoryName</strong>
+                            <small>@Money(item.Spent) з @Money(item.Limit) · @CssPercent(item.UsedPercent)%</small>
+                        </div>
+                        <div class="remaining-value">
+                            <small>Залишок</small>
+                            <b class="@(item.Remaining >= 0 ? "good" : "bad")">@Money(item.Remaining)</b>
+                        </div>
+                    </div>
+                    <div class="bar-track thick">
+                        <span style="--progress:@ProgressScale(item.UsedPercent); background:@item.CategoryColor"></span>
+                    </div>
+                    <div class="actions end">
+                        <button class="icon-button" title="Редагувати" @onclick="() => Edit(item)">✎</button>
+                        <button class="icon-button danger" title="Видалити" @onclick="() => DeleteAsync(item.Id)">×</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</section>
+
+@code {
+    private List<CategoryDto> categories = [];
+    private List<BudgetDto> budgets = [];
+    private BudgetDto form = new();
+
+    private IEnumerable<CategoryDto> ExpenseCategories =>
+        categories.Where(x => x.Kind is CategoryKind.Expense or CategoryKind.Universal);
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await Api.GetCategoriesAsync();
+        ResetForm();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        budgets = await Api.GetBudgetsAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        await Api.SaveBudgetAsync(form);
+        ResetForm();
+        await LoadAsync();
+    }
+
+    private void Edit(BudgetDto item)
+    {
+        form = new BudgetDto
+        {
+            Id = item.Id,
+            CategoryId = item.CategoryId,
+            Limit = item.Limit,
+            Month = item.Month,
+            Year = item.Year
+        };
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await Api.DeleteBudgetAsync(id);
+        await LoadAsync();
+    }
+
+    private void ResetForm()
+    {
+        form = new BudgetDto
+        {
+            CategoryId = ExpenseCategories.FirstOrDefault()?.Id ?? 0,
+            Month = DateTime.Today.Month,
+            Year = DateTime.Today.Year
+        };
+    }
+
+    private static string Money(decimal value) => $"{value:N0} UAH";
+    private static string CssPercent(decimal value) => Math.Clamp(value, 0, 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private static string ProgressScale(decimal value) => (Math.Clamp(value, 0, 100) / 100).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+}

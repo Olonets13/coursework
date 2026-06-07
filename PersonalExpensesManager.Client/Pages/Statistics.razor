@@ -1,0 +1,119 @@
+@page "/statistics"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Статистика</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Аналітика</p>
+        <h1>Статистика</h1>
+    </div>
+</section>
+
+@if (loading)
+{
+    <div class="surface">Завантаження статистики...</div>
+}
+else
+{
+    <section class="metric-grid">
+        <div class="metric">
+            <span>Усього доходів</span>
+            <strong class="good">@Money(summary.TotalIncome)</strong>
+        </div>
+        <div class="metric">
+            <span>Усього витрат</span>
+            <strong class="bad">@Money(summary.TotalExpenses)</strong>
+        </div>
+        <div class="metric">
+            <span>Баланс</span>
+            <strong class="@(summary.Balance >= 0 ? "good" : "bad")">@Money(summary.Balance)</strong>
+        </div>
+        <div class="metric">
+            <span>Місячний результат</span>
+            <strong class="@(summary.MonthBalance >= 0 ? "good" : "bad")">@Money(summary.MonthBalance)</strong>
+        </div>
+    </section>
+
+    <section class="split-grid">
+        <div class="surface">
+            <div class="section-title">
+                <h2>Витрати за категоріями</h2>
+                <span>поточний місяць</span>
+            </div>
+            <div class="bars">
+                @foreach (var item in categorySummary)
+                {
+                    var percent = CategoryLimitPercent(item);
+                    <div class="bar-row">
+                        <div class="bar-label">
+                            <span>@item.CategoryName</span>
+                            <b>@Money(item.Amount) · @PercentLabel(percent)</b>
+                        </div>
+                        <div class="bar-track">
+                            <span style="--progress:@ProgressScale(percent); background:@item.CategoryColor"></span>
+                        </div>
+                        <small>@item.Count операцій</small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="surface">
+            <div class="section-title">
+                <h2>Динаміка за місяцями</h2>
+                <span>@monthly.Count періодів</span>
+            </div>
+            <div class="month-chart">
+                @foreach (var item in monthly)
+                {
+                    <div class="month-row">
+                        <span>@($"{item.Month:00}.{item.Year}")</span>
+                        <div>
+                            <div class="bar-track income">
+                                <span style="--progress:@ProgressScale(MonthPercent(item.Income))"></span>
+                            </div>
+                            <div class="bar-track expense">
+                                <span style="--progress:@ProgressScale(MonthPercent(item.Expenses))"></span>
+                            </div>
+                        </div>
+                        <b class="@(item.Balance >= 0 ? "good" : "bad")">@Money(item.Balance)</b>
+                    </div>
+                }
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    private bool loading = true;
+    private SummaryDto summary = new();
+    private List<CategorySummaryDto> categorySummary = [];
+    private List<MonthlySummaryDto> monthly = [];
+    private List<BudgetDto> budgets = [];
+
+    private decimal MaxMonthAmount => monthly.Count == 0 ? 0 : monthly.Max(x => Math.Max(x.Income, x.Expenses));
+
+    protected override async Task OnInitializedAsync()
+    {
+        summary = await Api.GetSummaryAsync();
+        categorySummary = await Api.GetCategorySummaryAsync();
+        monthly = await Api.GetMonthlySummaryAsync();
+        budgets = await Api.GetBudgetsAsync();
+        loading = false;
+    }
+
+    private decimal CategoryLimitPercent(CategorySummaryDto category)
+    {
+        var budget = budgets.FirstOrDefault(x => x.CategoryId == category.CategoryId);
+        return budget is null || budget.Limit <= 0 ? 0 : category.Amount / budget.Limit * 100;
+    }
+
+    private decimal MonthPercent(decimal value) => MaxMonthAmount == 0 ? 0 : value / MaxMonthAmount * 100;
+    private static string CssPercent(decimal value) => Math.Clamp(value, 0, 100).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private static string ProgressScale(decimal value) => (Math.Clamp(value, 0, 100) / 100).ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+    private static string PercentLabel(decimal value) => $"{CssPercent(value)}%";
+
+    private static string Money(decimal value) => $"{value:N0} UAH";
+}

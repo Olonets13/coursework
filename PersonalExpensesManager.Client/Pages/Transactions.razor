@@ -1,0 +1,221 @@
+@page "/transactions"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Операції</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Журнал доходів і витрат</p>
+        <h1>Операції</h1>
+    </div>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert">@error</div>
+}
+
+<section class="workspace-grid">
+    <EditForm Model="form" OnValidSubmit="SaveAsync" class="surface form-panel">
+        <DataAnnotationsValidator />
+        <h2>@(form.Id == 0 ? "Нова операція" : "Редагування")</h2>
+
+        <label>
+            Назва
+            <InputText class="input" @bind-Value="form.Title" />
+        </label>
+        <ValidationMessage For="@(() => form.Title)" />
+
+        <div class="two-columns">
+            <label>
+                Сума
+                <InputNumber class="input" @bind-Value="form.Amount" />
+            </label>
+            <label>
+                Дата
+                <InputDate class="input" @bind-Value="form.Date" />
+            </label>
+        </div>
+
+        <label>
+            Тип
+            <InputSelect class="input" @bind-Value="form.Type">
+                <option value="@TransactionType.Expense">Витрата</option>
+                <option value="@TransactionType.Income">Дохід</option>
+            </InputSelect>
+        </label>
+
+        <label>
+            Категорія
+            <InputSelect class="input" @bind-Value="form.CategoryId">
+                @foreach (var category in AvailableCategories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label>
+            Рахунок
+            <InputSelect class="input" @bind-Value="form.AccountId">
+                @foreach (var account in accounts)
+                {
+                    <option value="@account.Id">@account.Name</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label>
+            Нотатка
+            <InputTextArea class="input" @bind-Value="form.Note" />
+        </label>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">Зберегти</button>
+            <button class="button" type="button" @onclick="ResetForm">Очистити</button>
+        </div>
+    </EditForm>
+
+    <section class="surface">
+        <div class="section-title">
+            <h2>Список операцій</h2>
+            <span>@transactions.Count записів</span>
+        </div>
+
+        <div class="filters">
+            <input class="input" placeholder="Пошук" @bind="filter.Search" @bind:event="oninput" />
+            <select class="input" @bind="filter.CategoryId">
+                <option value="">Усі категорії</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Id">@category.Name</option>
+                }
+            </select>
+            <select class="input" @bind="filter.AccountId">
+                <option value="">Усі рахунки</option>
+                @foreach (var account in accounts)
+                {
+                    <option value="@account.Id">@account.Name</option>
+                }
+            </select>
+            <button class="button" @onclick="LoadTransactionsAsync">Фільтрувати</button>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Назва</th>
+                        <th>Категорія</th>
+                        <th>Рахунок</th>
+                        <th class="right">Сума</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in transactions)
+                    {
+                        <tr>
+                            <td>@item.Date.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                <strong>@item.Title</strong>
+                                @if (!string.IsNullOrWhiteSpace(item.Note))
+                                {
+                                    <small>@item.Note</small>
+                                }
+                            </td>
+                            <td><span class="tag" style="border-color:@item.CategoryColor">@item.CategoryName</span></td>
+                            <td>@item.AccountName</td>
+                            <td class="right @(item.Type == TransactionType.Income ? "good" : "bad")">
+                                @(item.Type == TransactionType.Income ? "+" : "-")@Money(item.Amount)
+                            </td>
+                            <td class="actions">
+                                <button class="icon-button" title="Редагувати" @onclick="() => Edit(item)">✎</button>
+                                <button class="icon-button danger" title="Видалити" @onclick="() => DeleteAsync(item.Id)">×</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
+
+@code {
+    private List<TransactionDto> transactions = [];
+    private List<CategoryDto> categories = [];
+    private List<AccountDto> accounts = [];
+    private TransactionDto form = new();
+    private TransactionFilter filter = new();
+    private string? error;
+
+    private IEnumerable<CategoryDto> AvailableCategories =>
+        categories.Where(x => x.Kind == CategoryKind.Universal
+            || x.Kind == (form.Type == TransactionType.Income ? CategoryKind.Income : CategoryKind.Expense));
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await Api.GetCategoriesAsync();
+        accounts = await Api.GetAccountsAsync();
+        ResetForm();
+        await LoadTransactionsAsync();
+    }
+
+    private async Task LoadTransactionsAsync()
+    {
+        transactions = await Api.GetTransactionsAsync(filter);
+    }
+
+    private async Task SaveAsync()
+    {
+        error = null;
+        try
+        {
+            await Api.SaveTransactionAsync(form);
+            ResetForm();
+            await LoadTransactionsAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Не вдалося зберегти операцію: {ex.Message}";
+        }
+    }
+
+    private void Edit(TransactionDto item)
+    {
+        form = new TransactionDto
+        {
+            Id = item.Id,
+            Title = item.Title,
+            Amount = item.Amount,
+            Date = item.Date,
+            Type = item.Type,
+            CategoryId = item.CategoryId,
+            AccountId = item.AccountId,
+            Note = item.Note
+        };
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await Api.DeleteTransactionAsync(id);
+        await LoadTransactionsAsync();
+    }
+
+    private void ResetForm()
+    {
+        var firstAccount = accounts.FirstOrDefault()?.Id ?? 0;
+        var firstCategory = categories.FirstOrDefault(x => x.Kind is CategoryKind.Expense or CategoryKind.Universal)?.Id ?? 0;
+        form = new TransactionDto
+        {
+            Date = DateTime.Today,
+            Type = TransactionType.Expense,
+            AccountId = firstAccount,
+            CategoryId = firstCategory
+        };
+    }
+
+    private static string Money(decimal value) => $"{value:N0} UAH";
+}

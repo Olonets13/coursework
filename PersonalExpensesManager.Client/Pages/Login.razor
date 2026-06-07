@@ -1,0 +1,65 @@
+@page "/login"
+@inject AuthApiClient Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Вхід</PageTitle>
+
+<section class="auth-shell">
+    <div class="auth-panel">
+        <p class="eyebrow">Менеджер особистих витрат</p>
+        <h1>Вхід до системи</h1>
+        <p class="muted">Демо акаунт: demo@example.com / password123</p>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert">@error</div>
+        }
+
+        <EditForm Model="form" OnValidSubmit="LoginAsync" class="auth-form">
+            <DataAnnotationsValidator />
+            <label>
+                Email
+                <InputText class="input" @bind-Value="form.Email" />
+            </label>
+            <ValidationMessage For="@(() => form.Email)" />
+
+            <label>
+                Пароль
+                <InputText class="input" type="password" @bind-Value="form.Password" />
+            </label>
+            <ValidationMessage For="@(() => form.Password)" />
+
+            <button class="button primary wide" type="submit">Увійти</button>
+        </EditForm>
+
+        <p class="auth-switch">Немає акаунта? <a href="register">Зареєструватися</a></p>
+    </div>
+
+    <div class="auth-visual">
+        <div class="auth-number">25 920 UAH</div>
+        <span>поточний демо-баланс</span>
+        <div class="auth-lines">
+            <i style="width: 82%"></i>
+            <i style="width: 54%"></i>
+            <i style="width: 68%"></i>
+        </div>
+    </div>
+</section>
+
+@code {
+    private LoginDto form = new() { Email = "demo@example.com", Password = "password123" };
+    private string? error;
+
+    private async Task LoginAsync()
+    {
+        try
+        {
+            await Auth.LoginAsync(form);
+            Navigation.NavigateTo("", replace: true);
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message.Trim('"');
+        }
+    }
+}

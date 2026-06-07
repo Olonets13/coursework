@@ -1,0 +1,127 @@
+@page "/categories"
+@attribute [Authorize]
+@inject FinanceApiClient Api
+
+<PageTitle>Категорії</PageTitle>
+
+<section class="page-head">
+    <div>
+        <p class="eyebrow">Довідник</p>
+        <h1>Категорії</h1>
+    </div>
+</section>
+
+<section class="workspace-grid narrow">
+    <EditForm Model="form" OnValidSubmit="SaveAsync" class="surface form-panel">
+        <DataAnnotationsValidator />
+        <h2>@(form.Id == 0 ? "Нова категорія" : "Редагування")</h2>
+
+        <label>
+            Назва
+            <InputText class="input" @bind-Value="form.Name" />
+        </label>
+        <ValidationMessage For="@(() => form.Name)" />
+
+        <label>
+            Тип
+            <InputSelect class="input" @bind-Value="form.Kind">
+                <option value="@CategoryKind.Expense">Витрати</option>
+                <option value="@CategoryKind.Income">Доходи</option>
+                <option value="@CategoryKind.Universal">Універсальна</option>
+            </InputSelect>
+        </label>
+
+        <label>
+            Колір
+            <InputText class="input color-input" @bind-Value="form.Color" />
+        </label>
+
+        <div class="swatches">
+            @foreach (var color in colors)
+            {
+                <button type="button" title="@color" class="swatch" style="background:@color" @onclick="() => form.Color = color"></button>
+            }
+        </div>
+
+        <div class="form-actions">
+            <button class="button primary" type="submit">Зберегти</button>
+            <button class="button" type="button" @onclick="ResetForm">Очистити</button>
+        </div>
+    </EditForm>
+
+    <section class="surface">
+        <div class="section-title">
+            <h2>Усі категорії</h2>
+            <span>@categories.Count</span>
+        </div>
+
+        <div class="card-list">
+            @foreach (var item in categories)
+            {
+                <div class="mini-card">
+                    <span class="dot large" style="background:@item.Color"></span>
+                    <div>
+                        <strong>@item.Name</strong>
+                        <small>@KindName(item.Kind)</small>
+                    </div>
+                    <div class="actions">
+                        <button class="icon-button" title="Редагувати" @onclick="() => Edit(item)">✎</button>
+                        <button class="icon-button danger" title="Видалити" @onclick="() => DeleteAsync(item.Id)">×</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+</section>
+
+@code {
+    private readonly string[] colors = ["#10B981", "#2563EB", "#F59E0B", "#EF4444", "#6366F1", "#EC4899", "#14B8A6", "#64748B"];
+    private List<CategoryDto> categories = [];
+    private CategoryDto form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        categories = await Api.GetCategoriesAsync();
+    }
+
+    private async Task SaveAsync()
+    {
+        await Api.SaveCategoryAsync(form);
+        ResetForm();
+        await LoadAsync();
+    }
+
+    private void Edit(CategoryDto item)
+    {
+        form = new CategoryDto
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Color = item.Color,
+            Kind = item.Kind
+        };
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        await Api.DeleteCategoryAsync(id);
+        await LoadAsync();
+    }
+
+    private void ResetForm()
+    {
+        form = new CategoryDto { Color = "#10B981", Kind = CategoryKind.Expense };
+    }
+
+    private static string KindName(CategoryKind kind) => kind switch
+    {
+        CategoryKind.Income => "Доходи",
+        CategoryKind.Expense => "Витрати",
+        _ => "Універсальна"
+    };
+}

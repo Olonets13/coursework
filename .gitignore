@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+personal_expenses.db*
